@@ -98,3 +98,23 @@ To learn more about React Native, take a look at the following resources:
 =================================================================================================================================
 # Create project:
 npx @react-native-community/cli init ExpenseApp
+# Run androi
+npx react-native run-android
+# Run ios
+npx react-native run-ios
+
+# Cài đặt thư viện cần thiết
+===== AsyncStorage (lưu dữ liệu offline) =====
+npm install @react-native-async-storage/async-storage
+
+===== React Navigation (điều hướng giữa các màn hình) ========
+npm install @react-navigation/native
+npm install react-native-screens react-native-safe-area-context
+npm install @react-navigation/native-stack
+
+========== Thư viện UI nhẹ ==========
+npm install react-native-paper
+
+========= Biểu đồ (tùy chọn) ==========
+npm install victory-native react-native-svg
+
