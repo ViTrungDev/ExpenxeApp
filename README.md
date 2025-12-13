@@ -118,3 +118,8 @@ npm install react-native-paper
 ========= Biểu đồ (tùy chọn) ==========
 npm install victory-native react-native-svg
 
+npm install @react-navigation/native
+npm install @react-navigation/bottom-tabs
+npm install react-native-screens react-native-safe-area-context
+
+https://appicon.com

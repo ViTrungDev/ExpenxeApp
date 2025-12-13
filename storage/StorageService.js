@@ -17,3 +17,12 @@ export const getData = async (key) => {
     return null;
   }
 };
+export const pushData = async (key, newItem) => {
+  try {
+    const existing = await getData(key);
+    const updated = existing ? [...existing, newItem] : [newItem];
+    await saveData(key, updated);
+  } catch (e) {
+    console.error("Push Error: ", e);
+  }
+};
