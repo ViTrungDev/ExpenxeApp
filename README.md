@@ -123,3 +123,7 @@ npm install @react-navigation/bottom-tabs
 npm install react-native-screens react-native-safe-area-context
 
 https://appicon.com
+
+npm install @react-native-vector-icons/ionicons
+
+
