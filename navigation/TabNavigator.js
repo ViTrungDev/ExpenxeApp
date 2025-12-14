@@ -19,7 +19,7 @@ export default function TabNavigator() {
       screenOptions={({ route }) => ({
         headerShown: false,
         tabBarStyle: {
-          height: scale(60),
+          height: scale(50),
           paddingBottom: scale(8),
           paddingTop: scale(6),
         },

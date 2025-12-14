@@ -11,7 +11,7 @@ export default function TabBarAddButton({ onPress }) {
       style={styles.container} 
     >
       <View style={styles.button}>
-        <Ionicons name="add-circle" size={scale(32)} color="#fff" />
+        <Ionicons name="add" size={scale(30)} color="#fff" />
       </View>
     </TouchableOpacity>
   );
