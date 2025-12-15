@@ -126,4 +126,6 @@ https://appicon.com
 
 npm install @react-native-vector-icons/ionicons
 
+log: npx react-native log-android
+
 

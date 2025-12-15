@@ -1,18 +1,21 @@
 import React, { useState } from "react";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { Platform } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
   TextInput,
-  SafeAreaView,
   Modal,
   ScrollView,
 } from "react-native";
 import Ionicons from "@react-native-vector-icons/ionicons";
 import { scale } from "../utils/scale";
+import formatNumber from "../utils/formatNumber";
+import { pushData } from "../storage/StorageService";
+import { Alert } from "react-native";
 
 export default function AddTransaction({ navigation }) {
   const categories = [
@@ -42,9 +45,44 @@ export default function AddTransaction({ navigation }) {
   const [categoryModalVisible, setCategoryModalVisible] = useState(false);
 
   const [type, setType] = useState("expense");
-  const [amount, setAmount] = useState("120.50");
+  const [amount, setAmount] = useState("0");
   const [note, setNote] = useState("");
 
+  const resetForm = ()=>{
+    setType("expense");
+    setAmount("0");
+    setSelectCategory(categories[0]);
+    setDate(new Date());
+    setNote("");
+  }
+
+  const handleSaveTransaction = async ()=>{
+    if(!amount || amount === "0"){
+      Alert.alert("Lỗi","Vui lòng nhập số tiền giao dịch.");
+      return;
+    }
+    if(selectCategory.lable === "Danh mục"){
+      Alert.alert("Lỗi","Vui lòng chọn danh mục giao dịch.");
+      return;
+    }
+    const transaction = {
+      id: Date.now().toLocaleString(),
+      categories: selectCategory.lable,
+      type: type,
+      amount: Number(amount),
+      date: date.toISOString(),
+      note: note.trim(),
+    }
+    try{
+      await pushData('transactions',transaction);
+      Alert.alert("Thành công","Đã thêm giao dịch thành công.");
+      resetForm();
+      navigation.goBack();
+    }
+    catch(e){
+      Alert.alert("Lỗi","Đã có lỗi xảy ra. Vui lòng thử lại sau.");
+    }
+  }
   return (
     <SafeAreaView style={styles.container}>
       {/* HEADER */}
@@ -56,7 +94,7 @@ export default function AddTransaction({ navigation }) {
         <Text style={styles.headerTitle}>Thêm giao dịch</Text>
 
         <TouchableOpacity>
-          <Text style={styles.saveText}>Lưu</Text>
+          <Text> </Text>
         </TouchableOpacity>
       </View>
 
@@ -96,10 +134,22 @@ export default function AddTransaction({ navigation }) {
           </Text>
         </TouchableOpacity>
       </View>
-
-      {/* AMOUNT */}
-      <Text style={styles.amountText}>${amount}</Text>
-
+      {/* AMOUNT INPUT */}
+      <View style={styles.amountContainer}>
+          <TextInput
+            value={formatNumber(amount)}
+            onChangeText={(text) => {
+              const clean = text.replace(/[^0-9]/g, "");
+              setAmount(clean);
+            }}
+            keyboardType="number-pad"
+            style={styles.amountInput}
+            placeholder="0"
+            placeholderTextColor="#ccc"
+            underlineColorAndroid="transparent"
+          />
+          <Text style={styles.currencyText}>VND</Text>
+        </View>
       {/* CATEGORY + DATE */}
       <View style={styles.card}>
         {/* CATEGORY */}
@@ -143,12 +193,14 @@ export default function AddTransaction({ navigation }) {
           value={note}
           onChangeText={setNote}
           multiline
+          scrollEnabled
+          textAlignVertical="top"
           style={styles.noteInput}
         />
       </View>
 
       {/* BUTTON */}
-      <TouchableOpacity style={styles.addButton}>
+      <TouchableOpacity onPress={handleSaveTransaction} style={styles.addButton}>
         <Text style={styles.addButtonText}>Lưu giao dịch</Text>
       </TouchableOpacity>
 
@@ -219,12 +271,6 @@ const styles = StyleSheet.create({
     fontSize: scale(18),
     fontWeight: "600",
   },
-  saveText: {
-    fontSize: scale(16),
-    color: "#fab8a4ff",
-    fontWeight: "600",
-  },
-
   /* SWITCH */
   switchContainer: {
     flexDirection: "row",
@@ -251,16 +297,30 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
 
-  /* AMOUNT */
-  amountText: {
-    fontSize: scale(42),
-    fontWeight: "700",
-    color: "#abababff",
-    textAlign: "center",
-    marginVertical: scale(20),
-  },
+    /* AMOUNT */
+    amountContainer: {
+      flexDirection: "row",
+      justifyContent: "center",
+      alignItems: "center",
+      marginVertical: scale(20),
+    },
 
-  /* CARD */
+    amountInput: {
+      fontSize: scale(30),
+      fontWeight: "700",
+      color: "#abababff",
+      textAlign: "center",
+      minWidth: scale(120),
+    },
+
+    currencyText: {
+      fontSize: scale(30),
+      marginLeft: scale(2),
+      color: "#999",
+      fontWeight: "500",
+    },
+
+      /* CARD */
   card: {
     marginHorizontal: scale(16),
     borderRadius: scale(16),
@@ -305,6 +365,8 @@ const styles = StyleSheet.create({
   },
   noteInput: {
     fontSize: scale(14),
+    lineHeight: scale(22),
+    flex:1,
     textAlignVertical: "top",
   },
   cameraIcon: {
