@@ -1,4 +1,4 @@
-import { getData } from "../utils/storage";
+import { getData } from "../storage/StorageService";
 
 export const testGetData = async () => {
   try {

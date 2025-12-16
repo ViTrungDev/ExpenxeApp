@@ -5,7 +5,7 @@ import { NavigationContainer } from "@react-navigation/native";
 import TabNavigator from "./navigation/TabNavigator";
 
 import { useEffect } from "react";
-import { testGetData } from "./__tests__/getData.test";
+import { testGetData } from "./tests/getData.test"
 
 
 export default function App() {
@@ -14,7 +14,7 @@ export default function App() {
     useEffect(() => {
     testGetData(); 
   }, []);
-  
+
   return (
     <SafeAreaProvider>
       <StatusBar barStyle={isDarkMode ? "light-content" : "dark-content"} />
