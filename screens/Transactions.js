@@ -164,7 +164,7 @@ export default function InsightsScreen({ navigation }) {
         </Text>
         <TouchableOpacity
           onPress={() =>
-            navigation.navigate("Transactions")
+            navigation.navigate("Lịch sử")
           }
         >
           <Text style={styles.seeAll}>Xem tất cả</Text>
