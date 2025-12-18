@@ -67,7 +67,7 @@ export default function AddTransaction({ navigation }) {
     }
     const transaction = {
       id: Date.now().toLocaleString(),
-      categories: selectCategory.lable,
+      category: selectCategory.lable,
       type: type,
       amount: Number(amount),
       date: date.toISOString(),

@@ -1,79 +1,163 @@
-import React, { useEffect, useState } from "react";
-import { useFocusEffect } from "@react-navigation/native";
-import { useCallback } from "react";
+import React, { useState, useCallback } from "react";
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
   TouchableOpacity,
+  Platform,
 } from "react-native";
+import { useFocusEffect } from "@react-navigation/native";
+import Ionicons from "@react-native-vector-icons/ionicons";
+import DateTimePicker from "@react-native-community/datetimepicker";
 import { getData } from "../storage/StorageService";
 
+/* ===== ICON THEO CATEGORY ===== */
+const CATEGORY_ICONS = {
+  "Ăn uống": "fast-food-outline",
+  "Mua sắm": "cart-outline",
+  "Di chuyển": "car-outline",
+  "Thuê nhà": "home-outline",
+  "Điện nước": "flash-outline",
+  "Giải trí": "game-controller-outline",
+  "Sức khỏe": "heart-outline",
+  "Lương": "cash-outline",
+  "Khác": "ellipsis-horizontal-outline",
+};
+
 export default function InsightsScreen({ navigation }) {
-  const [monthlyData, setMonthlyData] = useState([]);
   const [categoryData, setCategoryData] = useState([]);
+  const [yearlyChartData, setYearlyChartData] = useState([]);
   const [totalExpense, setTotalExpense] = useState(0);
   const [totalIncome, setTotalIncome] = useState(0);
 
-  useFocusEffect(
-  useCallback(() => {
-    loadData();
-  }, [])
-);
+  const [selectedDate, setSelectedDate] = useState(new Date());
+  const [showPicker, setShowPicker] = useState(false);
 
-  const loadData = async () => {
+  /**
+   * ===== LOAD DATA (CHUẨN LOGIC) =====
+   */
+  const loadData = useCallback(async () => {
     const transactions = (await getData("transactions")) || [];
 
-    // Tổng chi
-    const expenseList = transactions.filter(
+    const month = selectedDate.getMonth();
+    const year = selectedDate.getFullYear();
+
+    /* ===== DATA THEO THÁNG (DETAIL) ===== */
+    const monthlyData = transactions.filter((t) => {
+      if (!t.date) return false;
+      const d = new Date(t.date);
+      return (
+        d.getMonth() === month &&
+        d.getFullYear() === year
+      );
+    });
+
+    const expenseList = monthlyData.filter(
       (t) => t.type === "expense"
     );
-
-    const total = expenseList.reduce(
-      (sum, i) => sum + i.amount,
-      0
-    );
-    setTotalExpense(total);
-    // Tổng thu
-    const incomeList =  transactions.filter(
+    const incomeList = monthlyData.filter(
       (t) => t.type === "income"
     );
-    const totalIncomes = incomeList.reduce(
-      (sum, i) => sum + i.amount,
-      0
-    );
-    setTotalIncome(totalIncomes);
 
-    setMonthlyData(buildMonthlyExpense(expenseList));
+    setTotalExpense(
+      expenseList.reduce((s, i) => s + i.amount, 0)
+    );
+    setTotalIncome(
+      incomeList.reduce((s, i) => s + i.amount, 0)
+    );
+
     setCategoryData(buildCategorySummary(expenseList));
-  };
+
+    /* ===== DATA BIỂU ĐỒ 12 THÁNG (THEO NĂM) ===== */
+    const yearlyExpenses = transactions.filter((t) => {
+      if (!t.date) return false;
+      const d = new Date(t.date);
+      return (
+        t.type === "expense" &&
+        d.getFullYear() === year
+      );
+    });
+
+    setYearlyChartData(
+      buildYearlyExpense(yearlyExpenses)
+    );
+  }, [selectedDate]);
+
+  /**
+   * ===== REFRESH KHI FOCUS =====
+   */
+  useFocusEffect(
+    useCallback(() => {
+      loadData();
+    }, [loadData])
+  );
 
   return (
     <ScrollView style={styles.container}>
-      <Text style={styles.title}>Tổng quan chi tiêu</Text>
+      {/* ===== HEADER ===== */}
+      <View style={styles.header}>
+        <Text style={styles.title}>Tổng quan chi tiêu</Text>
 
-      {/* Tổng thu chi */}
+        <TouchableOpacity
+          style={styles.monthPicker}
+          onPress={() => setShowPicker(true)}
+        >
+          <Ionicons
+            name="calendar-outline"
+            size={18}
+            color="#333"
+          />
+          <Text style={styles.monthText}>
+            {selectedDate.getMonth() + 1}/
+            {selectedDate.getFullYear()}
+          </Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* ===== PICKER ===== */}
+      {showPicker && (
+        <DateTimePicker
+          value={selectedDate}
+          mode="date"
+          display={
+            Platform.OS === "ios"
+              ? "spinner"
+              : "default"
+          }
+          onChange={(event, date) => {
+            setShowPicker(false);
+            if (date) setSelectedDate(date);
+          }}
+        />
+      )}
+
+      {/* ===== TỔNG THU / CHI ===== */}
       <View style={styles.card}>
         <View>
           <Text style={styles.label}>Tổng chi</Text>
           <Text style={styles.amount}>
-            {totalExpense.toLocaleString("vi-VN")} VND
+            {totalExpense.toLocaleString("vi-VN")} ₫
           </Text>
         </View>
+
         <Text style={styles.line}>/</Text>
+
         <View>
-          <Text style={styles.amounts}>{totalIncome.toLocaleString("vi-VN")} VND</Text>
+          <Text style={styles.label}>Tổng thu</Text>
+          <Text style={styles.amounts}>
+            {totalIncome.toLocaleString("vi-VN")} ₫
+          </Text>
         </View>
       </View>
 
-      {/* Biểu đồ */}
+      {/* ===== BIỂU ĐỒ 12 THÁNG (THEO NĂM) ===== */}
       <Text style={styles.sectionTitle}>
-        Chi tiêu theo tháng
+        Chi tiêu theo năm
       </Text>
-      <MonthlyChart data={monthlyData} />
+      <YearlyChart data={yearlyChartData} />
 
-      {/* Category */}
+      {/* ===== CATEGORY ===== */}
       <View style={styles.sectionHeader}>
         <Text style={styles.sectionTitle}>
           Chi theo danh mục
@@ -87,24 +171,35 @@ export default function InsightsScreen({ navigation }) {
         </TouchableOpacity>
       </View>
 
+      {categoryData.length === 0 && (
+        <Text style={styles.empty}>
+          Không có dữ liệu trong tháng này
+        </Text>
+      )}
+
       {categoryData.map((item) => (
         <CategoryCard
           key={item.category}
           item={item}
+          totalExpense={totalExpense}
         />
       ))}
+
     </ScrollView>
   );
 }
 
-/* ===== BIỂU ĐỒ ===== */
-function MonthlyChart({ data }) {
+/* ===== BIỂU ĐỒ 12 THÁNG ===== */
+function YearlyChart({ data }) {
   const max = Math.max(...data.map((i) => i.amount), 1);
 
   return (
     <View style={styles.chart}>
       {data.map((item) => (
-        <View key={item.month} style={styles.barWrap}>
+        <View
+          key={`${item.year}-${item.month}`}
+          style={styles.barWrap}
+        >
           <View
             style={[
               styles.bar,
@@ -120,41 +215,80 @@ function MonthlyChart({ data }) {
   );
 }
 
+
 /* ===== CATEGORY CARD ===== */
-function CategoryCard({ item }) {
+function CategoryCard({ item, totalExpense }) {
+  const icon =
+    CATEGORY_ICONS[item.category] ||
+    "pricetag-outline";
+
+  const percent =
+    totalExpense > 0
+      ? Math.round((item.amount / totalExpense) * 100)
+      : 0;
+
   return (
     <View style={styles.categoryCard}>
-      <Text style={styles.categoryName}>
-        {item.category}
-      </Text>
-      <Text style={styles.categoryAmount}>
-        {item.amount.toLocaleString("vi-VN")} ₫
-      </Text>
+      {/* ICON */}
+      <View style={styles.iconBox}>
+        <Ionicons
+          name={icon}
+          size={22}
+          color="#FF8A65"
+        />
+      </View>
+
+      {/* INFO */}
+      <View style={styles.categoryInfo}>
+        <View style={styles.rowBetween}>
+          <Text style={styles.categoryName}>
+            {item.category}
+          </Text>
+          <Text style={styles.percentText}>
+            {percent}%
+          </Text>
+        </View>
+
+        <Text style={styles.categoryAmount}>
+          {item.amount.toLocaleString("vi-VN")} ₫
+        </Text>
+
+        {/* PROGRESS BAR */}
+        <View style={styles.progressBg}>
+          <View
+            style={[
+              styles.progressFill,
+              { width: `${percent}%` },
+            ]}
+          />
+        </View>
+      </View>
     </View>
   );
 }
 
+
 /* ===== DATA HANDLER ===== */
-function buildMonthlyExpense(list) {
-  const year = new Date().getFullYear();
+function buildYearlyExpense(list, year) {
   const months = Array.from({ length: 12 }, (_, i) => ({
     month: i + 1,
+    year,
     amount: 0,
   }));
 
   list.forEach((i) => {
     const d = new Date(i.date);
-    if (d.getFullYear() === year) {
-      months[d.getMonth()].amount += i.amount;
-    }
+    months[d.getMonth()].amount += i.amount;
   });
 
   return months;
 }
 
+
 function buildCategorySummary(list) {
   const map = {};
   list.forEach((i) => {
+    if (!i.category) return;
     map[i.category] =
       (map[i.category] || 0) + i.amount;
   });
@@ -172,10 +306,27 @@ const styles = StyleSheet.create({
     backgroundColor: "#f6f7fb",
     padding: 16,
   },
+  header: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 12,
+  },
   title: {
     fontSize: 22,
     fontWeight: "700",
-    marginBottom: 12,
+  },
+  monthPicker: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#fff",
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 12,
+  },
+  monthText: {
+    marginLeft: 6,
+    fontWeight: "600",
   },
   card: {
     backgroundColor: "#fff",
@@ -186,18 +337,19 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
   },
-  line:{
-    fontSize:50
+  line: {
+    fontSize: 40,
+    color: "#ccc",
   },
   label: {
     color: "#888",
   },
   amount: {
-    fontSize: 28,
+    fontSize: 26,
     fontWeight: "600",
   },
-  amounts:{
-    fontSize: 32,
+  amounts: {
+    fontSize: 28,
     fontWeight: "700",
   },
   sectionTitle: {
@@ -213,6 +365,11 @@ const styles = StyleSheet.create({
   seeAll: {
     color: "#2ecc71",
     fontWeight: "600",
+  },
+  empty: {
+    textAlign: "center",
+    color: "#999",
+    marginTop: 12,
   },
   chart: {
     flexDirection: "row",
@@ -236,15 +393,54 @@ const styles = StyleSheet.create({
   categoryCard: {
     backgroundColor: "#fff",
     padding: 16,
-    borderRadius: 14,
+    borderRadius: 16,
     marginBottom: 12,
     flexDirection: "row",
-    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  iconBox: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: "#FFF0EA",
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 12,
+  },
+  categoryInfo: {
+    flex: 1,
   },
   categoryName: {
     fontWeight: "600",
+    fontSize: 16,
   },
   categoryAmount: {
     fontWeight: "700",
+    marginTop: 2,
   },
+  rowBetween: {
+  flexDirection: "row",
+  justifyContent: "space-between",
+  alignItems: "center",
+},
+
+percentText: {
+  fontWeight: "600",
+  color: "#888",
+},
+
+progressBg: {
+  height: 6,
+  backgroundColor: "#eee",
+  borderRadius: 4,
+  marginTop: 6,
+  overflow: "hidden",
+},
+
+progressFill: {
+  height: "100%",
+  backgroundColor: "#FF8A65",
+  borderRadius: 4,
+},
+
 });
