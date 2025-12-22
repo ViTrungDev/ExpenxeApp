@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useState, useCallback } from "react";
 import {
   View,
   Text,
@@ -8,73 +8,110 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { PieChart } from "react-native-chart-kit";
+import { useFocusEffect } from "@react-navigation/native";
+import { getData } from "../storage/StorageService"; 
 
 const { width } = Dimensions.get("window");
 
 export default function HomeScreen() {
-  const remainingBudget = 12450000;
-  const totalBudget = 25000000;
-    const getGreeting = ()=>{
+  /* ========= GREETING ========= */
+  const getGreeting = () => {
     const hour = new Date().getHours();
-    if(hour >= 5 && hour <11) return "Chào buổi sáng"
-    else if(hour >=11 && hour <13 ) return " Chào buổi trưa"
-    else if(hour >=13 && hour <18 ) return "Chào buổi chiều"
-    return "Chào buổi tối"
-  }
-  const [greeting, setGreeting] = useState(getGreeting());
+    if (hour >= 5 && hour < 11) return "Chào buổi sáng";
+    if (hour >= 11 && hour < 13) return "Chào buổi trưa";
+    if (hour >= 13 && hour < 18) return "Chào buổi chiều";
+    return "Chào buổi tối";
+  };
 
+  const [greeting] = useState(getGreeting());
 
-  const [categories, setCategories] = useState([
-    { name: "Ăn uống", percentage: 60, color: "#2CD9C5" },
-    { name: "Di chuyển", percentage: 25, color: "#FFB84C" },
-    { name: "Mua sắm", percentage: 15, color: "#4D7CFE" },
-    { name: "Khác", percentage: 10, color: "#D9D9D9" },
-  ]);
+  /* ========= DATA ========= */
+  const [transactions, setTransactions] = useState([]);
 
-  const pieData = (categories || [])
-    .filter((item) => item && typeof item === "object")
-    .map((item, idx) => ({
-      name: item.name || `Mục ${idx + 1}`,
-      population:
-        typeof item.percentage === "number" && !isNaN(item.percentage)
-          ? item.percentage
-          : 0,
-      color: item.color || "#999999",
-      legendFontColor: "#4A4A4A",
-      legendFontSize: 12,
-    }))
-    .filter((d) => d.population > 0);
+  useFocusEffect(
+    useCallback(() => {
+      const loadData = async () => {
+        const data = await getData("transactions");
+        setTransactions(Array.isArray(data) ? data : []);
+      };
+      loadData();
+    }, [])
+  );
+
+  /* ========= CALCULATE ========= */
+  const totalIncome = transactions
+    .filter(t => t.type === "income")
+    .reduce((s, t) => s + Number(t.amount || 0), 0);
+
+  const totalExpense = transactions
+    .filter(t => t.type === "expense")
+    .reduce((s, t) => s + Number(t.amount || 0), 0);
+
+  const savedAmount = Math.max(totalIncome - totalExpense, 0);
+
+  /* ========= CATEGORY MAP ========= */
+  const categoryMap = {};
+  transactions
+    .filter(t => t.type === "expense")
+    .forEach(t => {
+      const key = t.category || "Khác";
+      categoryMap[key] = (categoryMap[key] || 0) + Number(t.amount || 0);
+    });
+
+  const categories = Object.entries(categoryMap).map(([name, value], i) => ({
+    name,
+    percentage: value,
+    color: ["#2CD9C5", "#FFB84C", "#4D7CFE", "#D9D9D9"][i % 4],
+  }));
+
+  const pieData = categories.map(item => ({
+    name: item.name,
+    population: item.percentage,
+    color: item.color,
+    legendFontColor: "#4A4A4A",
+    legendFontSize: 12,
+  }));
 
   const chartConfig = {
     backgroundGradientFrom: "#fff",
     backgroundGradientTo: "#fff",
-    color: (opacity = 1) => `rgba(45,116,255, ${opacity})`,
-    labelColor: (opacity = 1) => `rgba(0,0,0, ${opacity})`,
+    color: () => "#2D74FF",
+    labelColor: () => "#000",
   };
+
+  /* ========= BLOCK 1 ========= */
+  const topCategories = Object.entries(categoryMap)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 3);
+
+  /* ========= BLOCK 3 ========= */
+  const spendingPercent =
+    totalIncome > 0 ? (totalExpense / totalIncome) * 100 : 0;
+
+  let suggestion = "📌 Hãy bắt đầu ghi chép chi tiêu mỗi ngày";
+  if (spendingPercent < 50) suggestion = "👍 Bạn đang chi tiêu rất hợp lý";
+  else if (spendingPercent < 80) suggestion = "🙂 Chi tiêu ổn, nên theo dõi thêm";
+  else suggestion = "⚠️ Chi tiêu cao, nên cân nhắc cắt giảm";
+
+  /* ========= UI ========= */
   return (
     <SafeAreaView style={styles.safe}>
       <ScrollView contentContainerStyle={styles.container}>
 
-        {/* Greeting */}
+        {/* HEADER */}
         <View style={styles.header}>
-          <View>
-            <Text style={styles.welcome}>{greeting}</Text>
-            <Text style={styles.username}>Bạn</Text>
-          </View>
-          <View style={styles.headerIcons}>
-            <Text style={styles.icon}>🔔</Text>
-            <Text style={[styles.icon, { marginLeft: 10 }]}>⚙️</Text>
-          </View>
+          <Text style={styles.welcome}>{greeting}</Text>
+          <Text style={styles.username}>Bạn</Text>
         </View>
 
-        {/* Remaining Budget Card */}
+        {/* BUDGET CARD */}
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>Ngân sách còn lại</Text>
+          <Text style={styles.cardTitle}>Ngân sách tháng</Text>
+
           <Text style={styles.budgetText}>
-            ₫{remainingBudget.toLocaleString()}
+            ₫{totalExpense.toLocaleString()}
             <Text style={styles.totalBudget}>
-              {" "}
-              / ₫{totalBudget.toLocaleString()}
+              {" "} / ₫{totalIncome.toLocaleString()}
             </Text>
           </Text>
 
@@ -82,46 +119,29 @@ export default function HomeScreen() {
             <View
               style={[
                 styles.progressBar,
-                { width: `${(remainingBudget / totalBudget) * 100}%` },
+                { width: `${Math.min(spendingPercent, 100)}%` },
               ]}
             />
           </View>
 
           <View style={styles.infoRow}>
             <View>
-              <Text style={styles.infoLabel}>Lương hàng tháng</Text>
-              <Text style={styles.infoValue}>₫25,000,000</Text>
+              <Text style={styles.infoLabel}>Đã chi</Text>
+              <Text style={styles.infoValue}>₫{totalExpense.toLocaleString()}</Text>
             </View>
             <View>
-              <Text style={styles.infoLabel}>Tiết kiệm dự đoán</Text>
-              <Text style={styles.infoValue}>₫5,500,000</Text>
+              <Text style={styles.infoLabel}>Tiết kiệm</Text>
+              <Text style={styles.infoValue}>₫{savedAmount.toLocaleString()}</Text>
             </View>
           </View>
         </View>
 
-        {/* Spending Alert */}
-        <View style={styles.alertCard}>
-          <Text style={styles.alertIcon}>💡</Text>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.alertTitle}>Cảnh báo chi tiêu</Text>
-            <Text style={styles.alertText}>
-              Bạn đã sử dụng 85% ngân sách cho mục “Ăn uống”.
-            </Text>
-          </View>
-          <Text style={styles.closeBtn}>✖</Text>
-        </View>
-
-        {/* Spending Chart Title */}
+        {/* ===== BIỂU ĐỒ (GIỮ NGUYÊN) ===== */}
         <View style={styles.chartHeader}>
           <Text style={styles.sectionTitle}>Biểu đồ chi tiêu</Text>
-          <View style={styles.switchTab}>
-            <Text style={styles.activeTab}>Tháng này</Text>
-            <Text style={styles.inactiveTab}>Tháng trước</Text>
-          </View>
         </View>
 
-        {/* Pie Chart */}
-        {pieData && pieData.length > 0 ? (
+        {pieData.length > 0 ? (
           <PieChart
             data={pieData}
             width={Math.max(width, 320)}
@@ -130,186 +150,172 @@ export default function HomeScreen() {
             backgroundColor="transparent"
             paddingLeft="15"
             chartConfig={chartConfig}
-            absolute={false}
           />
         ) : (
-          <View style={{ height: 220, justifyContent: "center", alignItems: "center" }}>
-            <Text style={{ color: "#999" }}>Không có dữ liệu</Text>
-          </View>
+          <Text style={styles.empty}>Chưa có dữ liệu</Text>
         )}
 
-        {/* Category Legend */}
-        <View style={styles.legendContainer}>
-          {(categories || []).map((item) => {
-            if (!item) return null;
-            return (
-              <View key={item.name || Math.random()} style={styles.legendRow}>
-                <View
-                  style={[styles.legendDot, { backgroundColor: item.color || "#999" }]}
-                />
-                <Text style={styles.legendLabel}>{item.name}</Text>
-                <Text style={styles.legendPercent}>
-                  {item.percentage ? `${item.percentage}%` : "-"}
-                </Text>
-              </View>
-            );
-          })}
+        {/* ===== BLOCK 1: TOP CHI TIÊU ===== */}
+        <View style={styles.block}>
+          <Text style={styles.blockTitle}>Chi tiêu nhiều nhất</Text>
+          {topCategories.map(([name, value], i) => (
+            <View key={name} style={styles.row}>
+              <Text>{i + 1}. {name}</Text>
+              <Text style={styles.bold}>₫{value.toLocaleString()}</Text>
+            </View>
+          ))}
         </View>
 
-        <View style={{ height: 30 }} />
+        {/* ===== BLOCK 3: GỢI Ý ===== */}
+        <View style={styles.suggestion}>
+          <Text style={styles.suggestionText}>{suggestion}</Text>
+        </View>
+
       </ScrollView>
     </SafeAreaView>
   );
 }
 
+/* ================= STYLES ================= */
 const styles = StyleSheet.create({
+  /* ===== BASE ===== */
   safe: {
     flex: 1,
     backgroundColor: "#F3F6FA",
   },
   container: {
-    paddingHorizontal: 20,
+    padding: 20,
     paddingBottom: 40,
   },
+
+  /* ===== HEADER ===== */
   header: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginTop: 10,
-    alignItems: "center",
+    marginBottom: 20,
   },
   welcome: {
-    fontSize: 16,
-    color: "#666",
+    color: "#6B7280",
+    fontSize: 15,
   },
   username: {
-    fontSize: 22,
-    fontWeight: "700",
+    fontSize: 24,
+    fontWeight: "800",
+    color: "#111827",
   },
-  headerIcons: {
-    flexDirection: "row",
-  },
-  icon: {
-    fontSize: 22,
-  },
+
+  /* ===== BUDGET CARD ===== */
   card: {
-    backgroundColor: "#fff",
+    backgroundColor: "#FFFFFF",
     padding: 20,
-    borderRadius: 18,
-    marginTop: 20,
+    borderRadius: 20,
+    marginBottom: 24,
     shadowColor: "#000",
-    shadowOpacity: 0.05,
-    shadowRadius: 6,
-    elevation: 3,
+    shadowOpacity: 0.06,
+    shadowRadius: 10,
+    elevation: 4,
   },
   cardTitle: {
-    fontSize: 16,
-    color: "#666",
-    marginBottom: 8,
+    fontSize: 15,
+    fontWeight: "600",
+    color: "#6B7280",
+    marginBottom: 6,
   },
   budgetText: {
     fontSize: 28,
-    fontWeight: "700",
+    fontWeight: "800",
     color: "#2D74FF",
   },
   totalBudget: {
-    fontSize: 16,
-    color: "#999",
+    fontSize: 15,
+    color: "#9CA3AF",
+    fontWeight: "500",
   },
   progressBackground: {
-    marginTop: 10,
-    backgroundColor: "#E6ECF5",
     height: 8,
-    width: "100%",
+    backgroundColor: "#E5ECF6",
     borderRadius: 10,
+    marginTop: 14,
+    overflow: "hidden",
   },
   progressBar: {
-    height: 8,
+    height: "100%",
     backgroundColor: "#2D74FF",
     borderRadius: 10,
   },
   infoRow: {
-    marginTop: 18,
     flexDirection: "row",
     justifyContent: "space-between",
+    marginTop: 18,
   },
   infoLabel: {
-    color: "#666",
+    fontSize: 13,
+    color: "#6B7280",
   },
   infoValue: {
     fontSize: 16,
     fontWeight: "700",
+    marginTop: 2,
+    color: "#111827",
   },
-  alertCard: {
-    flexDirection: "row",
-    backgroundColor: "#FFF3D9",
-    padding: 15,
-    borderRadius: 16,
-    marginTop: 20,
-    alignItems: "center",
-  },
-  alertIcon: {
-    fontSize: 28,
-    marginRight: 12,
-  },
-  alertTitle: {
-    fontSize: 16,
-    fontWeight: "700",
-    color: "#C68C1E",
-  },
-  alertText: {
-    fontSize: 14,
-    color: "#6A5F50",
-  },
-  closeBtn: {
-    fontSize: 20,
-    color: "#9A8F78",
-  },
+
+  /* ===== CHART ===== */
   chartHeader: {
-    marginTop: 30,
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
+    marginBottom: 10,
+    marginTop: 10,
   },
   sectionTitle: {
     fontSize: 18,
-    fontWeight: "700",
+    fontWeight: "800",
+    color: "#111827",
   },
-  switchTab: {
+  empty: {
+    textAlign: "center",
+    color: "#9CA3AF",
+    marginVertical: 40,
+  },
+
+  /* ===== BLOCK: TOP CHI TIÊU ===== */
+  block: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 18,
+    padding: 16,
+    marginTop: 24,
+    shadowColor: "#000",
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  blockTitle: {
+    fontSize: 16,
+    fontWeight: "800",
+    color: "#111827",
+    marginBottom: 12,
+  },
+  row: {
     flexDirection: "row",
-  },
-  activeTab: {
-    backgroundColor: "#fff",
-    paddingHorizontal: 16,
-    paddingVertical: 6,
-    borderRadius: 20,
-    fontWeight: "700",
-  },
-  inactiveTab: {
-    marginLeft: 10,
-    color: "#999",
-    alignSelf: "center",
-  },
-  legendContainer: {
-    marginTop: 10,
-    paddingHorizontal: 10,
-  },
-  legendRow: {
-    flexDirection: "row",
+    justifyContent: "space-between",
     alignItems: "center",
-    marginTop: 6,
+    paddingVertical: 6,
+    borderBottomWidth: 0.5,
+    borderBottomColor: "#E5E7EB",
   },
-  legendDot: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
+  bold: {
+    fontWeight: "700",
+    color: "#2D74FF",
   },
-  legendLabel: {
-    marginLeft: 10,
-    flex: 1,
-    fontSize: 14,
+
+  /* ===== AI SUGGESTION ===== */
+  suggestion: {
+    marginTop: 20,
+    backgroundColor: "#EEF4FF",
+    borderRadius: 18,
+    padding: 16,
+    borderLeftWidth: 5,
+    borderLeftColor: "#2D74FF",
   },
-  legendPercent: {
+  suggestionText: {
     fontSize: 14,
     fontWeight: "600",
+    color: "#1D4ED8",
+    lineHeight: 20,
   },
 });
