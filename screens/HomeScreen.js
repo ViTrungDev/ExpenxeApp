@@ -14,6 +14,22 @@ import { getData } from "../storage/StorageService";
 const { width } = Dimensions.get("window");
 
 export default function HomeScreen() {
+  const [userName, setUserName] = useState("Bạn");
+
+useFocusEffect(
+  useCallback(() => {
+    const loadUser = async () => {
+      const user = await getData("user");
+      if (user?.name) {
+        setUserName(user.name);
+      } else {
+        setUserName("Bạn");
+      }
+    };
+
+    loadUser();
+  }, [])
+);
   /* ========= GREETING ========= */
   const getGreeting = () => {
     const hour = new Date().getHours();
@@ -101,7 +117,7 @@ export default function HomeScreen() {
         {/* HEADER */}
         <View style={styles.header}>
           <Text style={styles.welcome}>{greeting}</Text>
-          <Text style={styles.username}>Bạn</Text>
+          <Text style={styles.username}>{userName}</Text>
         </View>
 
         {/* BUDGET CARD */}
