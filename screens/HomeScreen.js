@@ -9,27 +9,24 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { PieChart } from "react-native-chart-kit";
 import { useFocusEffect } from "@react-navigation/native";
-import { getData } from "../storage/StorageService"; 
+import { getData } from "../storage/StorageService";
 
 const { width } = Dimensions.get("window");
 
 export default function HomeScreen() {
+  /* ========= USER ========= */
   const [userName, setUserName] = useState("Bạn");
 
-useFocusEffect(
-  useCallback(() => {
-    const loadUser = async () => {
-      const user = await getData("user");
-      if (user?.name) {
-        setUserName(user.name);
-      } else {
-        setUserName("Bạn");
-      }
-    };
+  useFocusEffect(
+    useCallback(() => {
+      const loadUser = async () => {
+        const user = await getData("user");
+        setUserName(user?.name || "Bạn");
+      };
+      loadUser();
+    }, [])
+  );
 
-    loadUser();
-  }, [])
-);
   /* ========= GREETING ========= */
   const getGreeting = () => {
     const hour = new Date().getHours();
@@ -54,12 +51,26 @@ useFocusEffect(
     }, [])
   );
 
+  /* ========= FILTER BY CURRENT MONTH ========= */
+  const now = new Date();
+  const currentMonth = now.getMonth();
+  const currentYear = now.getFullYear();
+
+  const monthlyTransactions = transactions.filter(t => {
+    if (!t.date) return false;
+    const d = new Date(t.date);
+    return (
+      d.getMonth() === currentMonth &&
+      d.getFullYear() === currentYear
+    );
+  });
+
   /* ========= CALCULATE ========= */
-  const totalIncome = transactions
+  const totalIncome = monthlyTransactions
     .filter(t => t.type === "income")
     .reduce((s, t) => s + Number(t.amount || 0), 0);
 
-  const totalExpense = transactions
+  const totalExpense = monthlyTransactions
     .filter(t => t.type === "expense")
     .reduce((s, t) => s + Number(t.amount || 0), 0);
 
@@ -67,11 +78,12 @@ useFocusEffect(
 
   /* ========= CATEGORY MAP ========= */
   const categoryMap = {};
-  transactions
+  monthlyTransactions
     .filter(t => t.type === "expense")
     .forEach(t => {
       const key = t.category || "Khác";
-      categoryMap[key] = (categoryMap[key] || 0) + Number(t.amount || 0);
+      categoryMap[key] =
+        (categoryMap[key] || 0) + Number(t.amount || 0);
     });
 
   const categories = Object.entries(categoryMap).map(([name, value], i) => ({
@@ -143,16 +155,20 @@ useFocusEffect(
           <View style={styles.infoRow}>
             <View>
               <Text style={styles.infoLabel}>Đã chi</Text>
-              <Text style={styles.infoValue}>₫{totalExpense.toLocaleString()}</Text>
+              <Text style={styles.infoValue}>
+                ₫{totalExpense.toLocaleString()}
+              </Text>
             </View>
             <View>
               <Text style={styles.infoLabel}>Tiết kiệm</Text>
-              <Text style={styles.infoValue}>₫{savedAmount.toLocaleString()}</Text>
+              <Text style={styles.infoValue}>
+                ₫{savedAmount.toLocaleString()}
+              </Text>
             </View>
           </View>
         </View>
 
-        {/* ===== BIỂU ĐỒ (GIỮ NGUYÊN) ===== */}
+        {/* BIỂU ĐỒ */}
         <View style={styles.chartHeader}>
           <Text style={styles.sectionTitle}>Biểu đồ chi tiêu</Text>
         </View>
@@ -171,18 +187,20 @@ useFocusEffect(
           <Text style={styles.empty}>Chưa có dữ liệu</Text>
         )}
 
-        {/* ===== BLOCK 1: TOP CHI TIÊU ===== */}
+        {/* BLOCK 1 */}
         <View style={styles.block}>
           <Text style={styles.blockTitle}>Chi tiêu nhiều nhất</Text>
           {topCategories.map(([name, value], i) => (
             <View key={name} style={styles.row}>
               <Text>{i + 1}. {name}</Text>
-              <Text style={styles.bold}>₫{value.toLocaleString()}</Text>
+              <Text style={styles.bold}>
+                ₫{value.toLocaleString()}
+              </Text>
             </View>
           ))}
         </View>
 
-        {/* ===== BLOCK 3: GỢI Ý ===== */}
+        {/* BLOCK 3 */}
         <View style={styles.suggestion}>
           <Text style={styles.suggestionText}>{suggestion}</Text>
         </View>
@@ -194,7 +212,6 @@ useFocusEffect(
 
 /* ================= STYLES ================= */
 const styles = StyleSheet.create({
-  /* ===== BASE ===== */
   safe: {
     flex: 1,
     backgroundColor: "#F3F6FA",
@@ -203,8 +220,6 @@ const styles = StyleSheet.create({
     padding: 20,
     paddingBottom: 40,
   },
-
-  /* ===== HEADER ===== */
   header: {
     marginBottom: 20,
   },
@@ -217,8 +232,6 @@ const styles = StyleSheet.create({
     fontWeight: "800",
     color: "#111827",
   },
-
-  /* ===== BUDGET CARD ===== */
   card: {
     backgroundColor: "#FFFFFF",
     padding: 20,
@@ -272,8 +285,6 @@ const styles = StyleSheet.create({
     marginTop: 2,
     color: "#111827",
   },
-
-  /* ===== CHART ===== */
   chartHeader: {
     marginBottom: 10,
     marginTop: 10,
@@ -288,8 +299,6 @@ const styles = StyleSheet.create({
     color: "#9CA3AF",
     marginVertical: 40,
   },
-
-  /* ===== BLOCK: TOP CHI TIÊU ===== */
   block: {
     backgroundColor: "#FFFFFF",
     borderRadius: 18,
@@ -318,8 +327,6 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: "#2D74FF",
   },
-
-  /* ===== AI SUGGESTION ===== */
   suggestion: {
     marginTop: 20,
     backgroundColor: "#EEF4FF",

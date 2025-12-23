@@ -1,28 +1,23 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { StatusBar, useColorScheme } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { NavigationContainer } from "@react-navigation/native";
-import TabNavigator from "./navigation/TabNavigator";
-
-import { useEffect } from "react";
-import { testGetData } from "./tests/getData.test"
-
+import AppNavigator from "./navigation/AppNavigator";
+import { testGetData } from "./tests/getData.test";
 
 export default function App() {
   const isDarkMode = useColorScheme() === "dark";
 
-    useEffect(() => {
-    testGetData(); 
+  useEffect(() => {
+    testGetData();
   }, []);
 
   return (
     <SafeAreaProvider>
       <StatusBar barStyle={isDarkMode ? "light-content" : "dark-content"} />
-
       <NavigationContainer>
-        <TabNavigator />
+        <AppNavigator />
       </NavigationContainer>
-      
     </SafeAreaProvider>
   );
 }
