@@ -129,3 +129,7 @@ npm install @react-native-vector-icons/ionicons
 log: npx react-native log-android
 
 
+build
+cd androi
+.\gradlew assembleDebug
+.\gradlew assembleRelease ***
